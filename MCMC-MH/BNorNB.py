@@ -9,6 +9,9 @@ import os
 #  connection between 
 logfact= None
 
+uTH1= -6.5
+uTH2= -5
+
 ints = _N.arange(20000)
 ln2pi= 1.8378770664093453
 
@@ -54,15 +57,22 @@ def BNorNBonly(GibbsIter, iters, w, j, u0, rn0, dist, cts, rns, us, dty, xn, jxs
 
     ll0 = Llklhds(dist, cts, rn0, p0)
     #  the poisson distribution needs to be truncated
-    prop_ps = _N.empty(iters)
+    prop_us = _N.empty(iters)
     prop_rns = _N.empty(iters, dtype=_N.int)
 
     zr2nmin  = _N.arange(rnmin) # rnmin is a valid value for n
+
+    u_m     = (uTH1+uTH2)*0.5
+    mag     = 4./(uTH2 - uTH1)
+
     for it in xrange(iters):
         us[it] = u0
         rns[it] = rn0    #  rn0 is the newly sampled value if accepted
         lls[it] = ll0
 
+        todist = dist
+        cross  = False
+        jac    = 0
         if it % 1000 == 0:
             print it
 
@@ -70,7 +80,7 @@ def BNorNBonly(GibbsIter, iters, w, j, u0, rn0, dist, cts, rns, us, dty, xn, jxs
         m2          = 1./rn0 + 0.2      # rn0 is the mean for proposal for rn1
         p_prp_rn1        = 1 - 1./(rn0*m2)  # param p for proposal for rn1
         r_prp_rn1        = rn0 / (rn0*m2-1) # param r for proposal for rn1
-        
+
         bGood = False   #  rejection sampling of rn1
         while not bGood:
             rn1 = _N.random.negative_binomial(r_prp_rn1, 1-p_prp_rn1)
@@ -93,7 +103,7 @@ def BNorNBonly(GibbsIter, iters, w, j, u0, rn0, dist, cts, rns, us, dty, xn, jxs
 
         ltrms = logfact[zr2nmin+ir_prp_rn0-1]  - logfact[ir_prp_rn0-1] - logfact[zr2nmin] + ir_prp_rn0*_N.log(1-p_prp_rn0) + zr2nmin*_N.log(p_prp_rn0)
         lCnb0        = _N.log(1 - _N.sum(_N.exp(ltrms)))  #  nrmlzation 4 truncated 
-        
+
         lpmf0       = logfact[rn0+r_prp_rn0-1]  - logfact[r_prp_rn0-1] - logfact[rn0] + r_prp_rn0*_N.log(1-p_prp_rn0) + rn0*_N.log(p_prp_rn0) - lCnb0
 
         ###################################################
@@ -101,27 +111,17 @@ def BNorNBonly(GibbsIter, iters, w, j, u0, rn0, dist, cts, rns, us, dty, xn, jxs
         #  sample using p from [0, 0.75]  mean 0.25, sqrt(variance) = 0.25
         #  p1 x rn1 = p0 x rn0      --> p1 = p0 x rn0/rn1   BINOMIAL
         #  
-        mu_p1  = (p0 * rn0)/rn1 if dist == _cd.__BNML__ else (rn0*p0)/(rn0*p0 + rn1*(1-p0))
-        stdp1 = (0.5-_N.abs(mu_p1-0.5))*0.05 + 0.0001
-        istdp1= 1./stdp1
-        limL    = -mu_p1*istdp1     #  0-mu_p1
-        limR    = (1-mu_p1)*istdp1  #  1-mu_p1
-        limRmL  = limR-limL
-        p1      = _ss.truncnorm.rvs(limL, limR)  #  
-        p1      = (p1-limL)/limRmL
-        prop_ps[it] = p1
+        mn_u1 = -_N.log(rn1 * (1+_N.exp(-u0))/rn0 - 1) if dist == _cd.__BNML__ else (u0 - _N.log(float(rn1)/rn0))
 
-        nC1    = _ss.norm.cdf((1-mu_p1)*istdp1) - _ss.norm.cdf(-mu_p1*istdp1)
-        lnC1   = _N.log(nC1)
-        u1    = -_N.log(1./p1 -1)
-        mu_p0  = (p1 * rn1)/rn0 if dist == _cd.__BNML__ else (rn1*p1)/(rn1*p1 + rn0*(1-p1))
-        stdp0 = (0.5-_N.abs(mu_p0-0.5))*0.05 + 0.0001
-        istdp0= 1./stdp0
-        nC0    = _ss.norm.cdf((1-mu_p0)*istdp0) - _ss.norm.cdf(-mu_p0*istdp0)
-        lnC0   = _N.log(nC0)
+        u1          = mn_u1 + stdu*rdns[it]
+        p1  = 1/(1 + _N.exp(-u1))
+    
+        prop_us[it] = u1
+        mn_u0 = -_N.log(rn0 * (1+_N.exp(-u1))/rn1 - 1) if dist == _cd.__BNML__ else (u1 - _N.log(float(rn0)/rn1))
 
-        lprop1 = -0.5*(ln2pi+_N.log(stdp1*stdp1))-0.5*(p1 - mu_p1)*(p1-mu_p1)*(istdp1*istdp1) - lnC1 + lpmf1 #  forward
-        lprop0 = -0.5*(ln2pi+_N.log(stdp0*stdp0))-0.5*(p0 - mu_p0)*(p0-mu_p0)*(istdp0*istdp0) - lnC0 + lpmf0 #  forward
+
+        lprop1 = -0.5*(u1 - mn_u1)*(u1-mn_u1)*istdu2 + lpmf1 #  forward
+        lprop0 = -0.5*(u0 - mn_u0)*(u0-mn_u0)*istdu2 + lpmf1 #  backwards
 
         ll1 = Llklhds(dist, cts, rn1, p1)  #  forward
 
@@ -144,4 +144,4 @@ def BNorNBonly(GibbsIter, iters, w, j, u0, rn0, dist, cts, rns, us, dty, xn, jxs
 
         dty[it] = dist
 
-    return prop_ps, prop_rns
+    return prop_us, prop_rns
