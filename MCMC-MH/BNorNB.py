@@ -77,7 +77,6 @@ def BNorNBonly(GibbsIter, iters, w, j, u0, rn0, dist, cts, rns, us, dty, xn, jxs
         #dbtt1 = _tm.time()
         jxs[it] = jx
 
-        """
         if _N.random.rand() < jx:  #  JUMP
             mv = 0
             mvtyps[it] = 1
@@ -113,77 +112,76 @@ def BNorNBonly(GibbsIter, iters, w, j, u0, rn0, dist, cts, rns, us, dty, xn, jxs
             #lpPR   = _N.log(jxr/jx)
             ljac   = _N.log((jxr/jx) * (p0/p1))
         else:    #  ########   DIFFUSION    ############
-        """
-        mvtyps[it] = 0
-        todist = dist
-        zr2rnmin = zr2rnmins[dist]
-        ljac    = 0
-        if it % 1000 == 0:
-            print it
+            mvtyps[it] = 0
+            todist = dist
+            zr2rnmin = zr2rnmins[dist]
+            ljac    = 0
+            if it % 1000 == 0:
+                print it
 
-        ##  propose an rn1 
-        m2          = 1./rn0 + 0.2      # rn0 is the mean for proposal for rn1
-        p_prp_rn1        = 1 - 1./(rn0*m2)  # param p for proposal for rn1
-        r_prp_rn1        = rn0 / (rn0*m2-1) # param r for proposal for rn1
-        ir_prp_rn1 = int(r_prp_rn1)
+            ##  propose an rn1 
+            m2          = 1./rn0 + 0.2      # rn0 is the mean for proposal for rn1
+            p_prp_rn1        = 1 - 1./(rn0*m2)  # param p for proposal for rn1
+            r_prp_rn1        = rn0 / (rn0*m2-1) # param r for proposal for rn1
+            ir_prp_rn1 = int(r_prp_rn1)
 
-        bGood = False   #  rejection sampling of rn1
-        while not bGood:
-            rn1 = _N.random.negative_binomial(ir_prp_rn1, 1-p_prp_rn1)
-            if rn1 >= rnmin[dist]:
-                bGood = True
-        prop_rns[it] = rn1
+            bGood = False   #  rejection sampling of rn1
+            while not bGood:
+                rn1 = _N.random.negative_binomial(ir_prp_rn1, 1-p_prp_rn1)
+                if rn1 >= rnmin[dist]:
+                    bGood = True
+            prop_rns[it] = rn1
 
-        #########  log proposal density for rn1
-        ir_prp_rn1 = int(r_prp_rn1)
-        ltrms = logfact[zr2rnmin+ir_prp_rn1-1]  - logfact[ir_prp_rn1-1] - logfact[zr2rnmin] + ir_prp_rn1*_N.log(1-p_prp_rn1) + zr2rnmin*_N.log(p_prp_rn1)
-        lCnb1        = _N.log(1 - _N.sum(_N.exp(ltrms)))  #  nrmlzation 4 truncated pmf
+            #########  log proposal density for rn1
+            ir_prp_rn1 = int(r_prp_rn1)
+            ltrms = logfact[zr2rnmin+ir_prp_rn1-1]  - logfact[ir_prp_rn1-1] - logfact[zr2rnmin] + ir_prp_rn1*_N.log(1-p_prp_rn1) + zr2rnmin*_N.log(p_prp_rn1)
+            lCnb1        = _N.log(1 - _N.sum(_N.exp(ltrms)))  #  nrmlzation 4 truncated pmf
 
-        lpmf1       = logfact[rn1+ir_prp_rn1-1]  - logfact[ir_prp_rn1-1] - logfact[rn1] + r_prp_rn1*_N.log(1-p_prp_rn1) + rn1*_N.log(p_prp_rn1) - lCnb1
+            lpmf1       = logfact[rn1+ir_prp_rn1-1]  - logfact[ir_prp_rn1-1] - logfact[rn1] + r_prp_rn1*_N.log(1-p_prp_rn1) + rn1*_N.log(p_prp_rn1) - lCnb1
 
-        #########  log proposal density for rn0
-        ##  rn1
-        m2          = 1./rn1 + 0.2      # rn0 is the mean for proposal for rn1
-        p_prp_rn0        = 1 - 1./(rn1*m2)  # param p for proposal for rn1
-        r_prp_rn0        = rn1 / (rn1*m2-1.) # param r for proposal for rn1
-        ir_prp_rn0 = int(r_prp_rn0)
+            #########  log proposal density for rn0
+            ##  rn1
+            m2          = 1./rn1 + 0.2      # rn0 is the mean for proposal for rn1
+            p_prp_rn0        = 1 - 1./(rn1*m2)  # param p for proposal for rn1
+            r_prp_rn0        = rn1 / (rn1*m2-1.) # param r for proposal for rn1
+            ir_prp_rn0 = int(r_prp_rn0)
 
-        ltrms = logfact[zr2rnmin+ir_prp_rn0-1]  - logfact[ir_prp_rn0-1] - logfact[zr2rnmin] + ir_prp_rn0*_N.log(1-p_prp_rn0) + zr2rnmin*_N.log(p_prp_rn0)
-        smelt = _N.sum(_N.exp(ltrms))
-        # print "------"
-        # print "%.5f" % smelt
-        # print dist
-        # print todist
-        # print ir_prp_rn0
-        # print p_prp_rn0
-        # print zr2rnmin
-        lCnb0        = _N.log(1 - _N.sum(_N.exp(ltrms)))  #  nrmlzation 4 truncated 
+            ltrms = logfact[zr2rnmin+ir_prp_rn0-1]  - logfact[ir_prp_rn0-1] - logfact[zr2rnmin] + ir_prp_rn0*_N.log(1-p_prp_rn0) + zr2rnmin*_N.log(p_prp_rn0)
+            smelt = _N.sum(_N.exp(ltrms))
+            # print "------"
+            # print "%.5f" % smelt
+            # print dist
+            # print todist
+            # print ir_prp_rn0
+            # print p_prp_rn0
+            # print zr2rnmin
+            lCnb0        = _N.log(1 - _N.sum(_N.exp(ltrms)))  #  nrmlzation 4 truncated 
 
-        lpmf0       = logfact[rn0+ir_prp_rn0-1]  - logfact[ir_prp_rn0-1] - logfact[rn0] + r_prp_rn0*_N.log(1-p_prp_rn0) + rn0*_N.log(p_prp_rn0) - lCnb0
+            lpmf0       = logfact[rn0+ir_prp_rn0-1]  - logfact[ir_prp_rn0-1] - logfact[rn0] + r_prp_rn0*_N.log(1-p_prp_rn0) + rn0*_N.log(p_prp_rn0) - lCnb0
 
-        ###################################################
-        #  propose p1
-        #  sample using p from [0, 0.75]  mean 0.25, sqrt(variance) = 0.25
-        #  p1 x rn1 = p0 x rn0      --> p1 = p0 x rn0/rn1   BINOMIAL
-        #  
+            ###################################################
+            #  propose p1
+            #  sample using p from [0, 0.75]  mean 0.25, sqrt(variance) = 0.25
+            #  p1 x rn1 = p0 x rn0      --> p1 = p0 x rn0/rn1   BINOMIAL
+            #  
 
-        try:
-            mn_u1 = -_N.log(rn1 * (1+_N.exp(-u0))/rn0 - 1) if dist == _cd.__BNML__ else (u0 - _N.log(float(rn1)/rn0))
-        except Warning:
-            print "todist   %(to)d   dist %(fr)d" % {"to" : todist, "fr" : dist}
-            print "%.5e" % (rn1 * (1+_N.exp(-u0))/rn0 - 1)
-            print "%.5e" % (u0 - _N.log(float(rn1)/rn0))
+            try:
+                mn_u1 = -_N.log(rn1 * (1+_N.exp(-u0))/rn0 - 1) if dist == _cd.__BNML__ else (u0 - _N.log(float(rn1)/rn0))
+            except Warning:
+                print "todist   %(to)d   dist %(fr)d" % {"to" : todist, "fr" : dist}
+                print "%.5e" % (rn1 * (1+_N.exp(-u0))/rn0 - 1)
+                print "%.5e" % (u0 - _N.log(float(rn1)/rn0))
 
 
-        u1          = mn_u1 + stdu*rdns[it]
-        p1x = 1 / (1 + _N.exp(-(u1+xn)))
-        p1  = 1/(1 + _N.exp(-u1))
+            u1          = mn_u1 + stdu*rdns[it]
+            p1x = 1 / (1 + _N.exp(-(u1+xn)))
+            p1  = 1/(1 + _N.exp(-u1))
 
-        prop_us[it] = u1
-        mn_u0 = -_N.log(rn0 * (1+_N.exp(-u1))/rn1 - 1) if dist == _cd.__BNML__ else (u1 - _N.log(float(rn0)/rn1))
+            prop_us[it] = u1
+            mn_u0 = -_N.log(rn0 * (1+_N.exp(-u1))/rn1 - 1) if dist == _cd.__BNML__ else (u1 - _N.log(float(rn0)/rn1))
 
-        lprop1 = -0.5*(u1 - mn_u1)*(u1-mn_u1)*istdu2 + lpmf1 #  forward
-        lprop0 = -0.5*(u0 - mn_u0)*(u0-mn_u0)*istdu2 + lpmf1 #  backwards
+            lprop1 = -0.5*(u1 - mn_u1)*(u1-mn_u1)*istdu2 + lpmf1 #  forward
+            lprop0 = -0.5*(u0 - mn_u0)*(u0-mn_u0)*istdu2 + lpmf1 #  backwards
 
         ll1 = Llklhds(todist, cts, rn1, p1)  #  forward
 
